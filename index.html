@@ -47,14 +47,53 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sa
 const API="https://script.google.com/macros/s/AKfycbyBIjS4h-lUQptOzY179XhgsV9HRydAs0CCaUhelVFiLtWCK204fzf8vYl4o8aZmo2Afw/exec";
 const money=v=>'฿'+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function toast(s){const e=document.getElementById('toast');e.textContent=s;e.style.display='block';setTimeout(()=>e.style.display='none',1800)}
-function render(d){document.getElementById('year').textContent=d.year||'—';document.getElementById('gross').textContent=money(d.gross);document.getElementById('net').textContent=money(d.expectedNet);document.getElementById('actual').textContent=money(d.actualReceived);document.getElementById('pending').textContent=d.pending||0;
-const banks=Object.entries(d.banks||{}).sort((a,b)=>b[1].expectedNet-a[1].expectedNet),max=Math.max(...banks.map(x=>x[1].expectedNet),1);
-document.getElementById('banks').innerHTML=banks.length?banks.map(([s,v])=>'<div class="bank"><div class="banktop"><div><div class="stock">'+esc(s)+'</div><div class="small">ได้รับจริง '+money(v.actual)+'</div></div><div class="amt">'+money(v.expectedNet)+'<br><span class="status '+(v.status==='Paid'?'':'pending')+'">'+(v.status==='Paid'?'ได้รับแล้ว':'รอดำเนินการ')+'</span></div></div><div class="barbg"><div class="bar" style="width:'+Math.max(3,Math.round(v.expectedNet/max*100))+'%"></div></div></div>').join(''):'<div class="small">ไม่มีข้อมูล</div>';
-document.getElementById('pendingList').innerHTML=(window.pending||[]).length?window.pending.map(x=>'<div class="bank"><div class="banktop"><div><div class="stock">'+esc(x.stock)+'</div><div class="small">XD '+esc(x.xd||'-')+' • วันจ่าย '+esc(x.payment||'-')+'</div></div><div class="amt">'+money(x.expectedNet)+'<br><span class="status pending">รอรับเงิน</span></div></div></div>').join(''):'<div class="small">ไม่มีรายการรอรับเงิน 🎉</div>';}
-function jsonp(url,cb){return new Promise((resolve,reject)=>{const name='bdcb_'+Date.now()+'_'+Math.random().toString(36).slice(2);let done=false;const s=document.createElement('script');let timer=null;const finish=(err,data)=>{if(done)return;done=true;if(timer)clearTimeout(timer);delete window[name];s.remove();err?reject(err):(cb&&cb(data),resolve(data))};window[name]=d=>finish(null,d);s.onerror=()=>finish(new Error('เชื่อมต่อ Backend ไม่สำเร็จ'));timer=setTimeout(()=>finish(new Error('Backend ตอบสนองช้าเกินไป')),10000);s.src=url+(url.includes('?')?'&':'?')+'callback='+encodeURIComponent(name)+'&_='+Date.now();document.body.appendChild(s)})}
-async function refreshData(){toast('กำลังโหลดข้อมูล…');try{const s=await jsonp(API+'?action=summary');const p=await jsonp(API+'?action=pending');window.pending=p.items||[];render(s);toast('อัปเดตแล้ว')}catch(e){console.error(e);document.getElementById('banks').innerHTML='<div class="small">เชื่อมต่อข้อมูลไม่ได้ กรุณากด รีเฟรชข้อมูล อีกครั้ง</div>';document.getElementById('pendingList').innerHTML='<div class="small">ไม่สามารถโหลดข้อมูลจาก Google Sheets ได้</div>';toast('เชื่อมต่อ Backend ไม่สำเร็จ')}}
-async function openSheets(){try{const d=await jsonp(API+'?action=sheetUrl');if(d.url)location.href=d.url;else toast('ไม่พบลิงก์ Google Sheets')}catch(e){toast('เปิด Google Sheets ไม่สำเร็จ')}}
+function toast(s){const e=document.getElementById('toast');e.textContent=s;e.style.display='block';setTimeout(()=>e.style.display='none',2200)}
+function render(d){
+ document.getElementById('year').textContent=d.year||'—';
+ document.getElementById('gross').textContent=money(d.gross);
+ document.getElementById('net').textContent=money(d.expectedNet);
+ document.getElementById('actual').textContent=money(d.actualReceived);
+ document.getElementById('pending').textContent=d.pending||0;
+ const banks=Object.entries(d.banks||{}).sort((a,b)=>b[1].expectedNet-a[1].expectedNet);
+ const max=Math.max(...banks.map(x=>x[1].expectedNet),1);
+ document.getElementById('banks').innerHTML=banks.length?banks.map(([s,v])=>'<div class="bank"><div class="banktop"><div><div class="stock">'+esc(s)+'</div><div class="small">ได้รับจริง '+money(v.actual)+'</div></div><div class="amt">'+money(v.expectedNet)+'<br><span class="status '+(v.status==='Paid'?'':'pending')+'">'+(v.status==='Paid'?'ได้รับแล้ว':'รอดำเนินการ')+'</span></div></div><div class="barbg"><div class="bar" style="width:'+Math.max(3,Math.round(v.expectedNet/max*100))+'%"></div></div></div>').join(''):'<div class="small">ไม่มีข้อมูล</div>';
+ document.getElementById('pendingList').innerHTML=(window.pending||[]).length?window.pending.map(x=>'<div class="bank"><div class="banktop"><div><div class="stock">'+esc(x.stock)+'</div><div class="small">XD '+esc(x.xd||'-')+' • วันจ่าย '+esc(x.payment||'-')+'</div></div><div class="amt">'+money(x.expectedNet)+'<br><span class="status pending">รอรับเงิน</span></div></div></div>').join(''):'<div class="small">ไม่มีรายการรอรับเงิน 🎉</div>';
+}
+function jsonp(action, callbackName, timeoutMs=12000){
+ return new Promise((resolve,reject)=>{
+   let finished=false;
+   const script=document.createElement('script');
+   const cleanup=()=>{try{delete window[callbackName]}catch(e){};script.remove();clearTimeout(timer)};
+   const finish=(err,data)=>{if(finished)return;finished=true;cleanup();err?reject(err):resolve(data)};
+   window[callbackName]=(data)=>finish(null,data);
+   script.onerror=()=>finish(new Error('โหลด '+action+' ไม่สำเร็จ'));
+   const timer=setTimeout(()=>finish(new Error('หมดเวลารอ '+action)),timeoutMs);
+   script.src=API+'?action='+encodeURIComponent(action)+'&callback='+encodeURIComponent(callbackName)+'&_='+Date.now();
+   document.head.appendChild(script);
+ });
+}
+async function refreshData(){
+ toast('กำลังโหลดข้อมูล…');
+ document.getElementById('banks').innerHTML='<div class="small">กำลังโหลดข้อมูล…</div>';
+ document.getElementById('pendingList').innerHTML='<div class="small">กำลังโหลดข้อมูล…</div>';
+ try{
+   const [s,p]=await Promise.all([
+     jsonp('summary','bankDividendSummaryCallback'),
+     jsonp('pending','bankDividendPendingCallback')
+   ]);
+   if(!s || s.ok!==true) throw new Error('summary response invalid');
+   if(!p || p.ok!==true) throw new Error('pending response invalid');
+   window.pending=Array.isArray(p.items)?p.items:[];
+   render(s);
+   toast('อัปเดตแล้ว');
+ }catch(e){
+   console.error('Dashboard API error:',e);
+   document.getElementById('banks').innerHTML='<div class="small">เชื่อมต่อข้อมูลไม่ได้ กรุณากด “รีเฟรชข้อมูล” อีกครั้ง</div>';
+   document.getElementById('pendingList').innerHTML='<div class="small">ไม่สามารถโหลดข้อมูลจาก Google Sheets ได้</div>';
+   toast('เชื่อมต่อ Backend ไม่สำเร็จ');
+ }
+}
+async function openSheets(){try{const d=await jsonp('sheetUrl','bankDividendSheetCallback');if(d&&d.url)location.href=d.url;else toast('ไม่พบลิงก์ Google Sheets')}catch(e){toast('เปิด Google Sheets ไม่สำเร็จ')}}
 function openBackend(){location.href=API}
 function addHomeHint(){toast('กด Share → Add to Home Screen → Open as Web App')}
 window.addEventListener('load',refreshData);
