@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#102A43">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ปันผลธนาคาร">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>ปันผลหุ้นธนาคาร</title>
+<style>
+:root{--navy:#102A43;--blue:#2F6BFF;--cyan:#12AFC0;--green:#16A36A;--gold:#D99A1D;--bg:#F4F7FB;--text:#17212F;--muted:#667085;--line:#E8EDF3}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg)}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;color:var(--text);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.wrap{width:min(760px,100%);margin:auto;padding:16px 14px 34px;min-height:100dvh}
+.hero{background:linear-gradient(135deg,#102A43,#174C72 60%,#0F7890);color:white;border-radius:24px;padding:22px 20px;margin-bottom:12px;box-shadow:0 10px 26px #102A4328}
+.eyebrow{font-size:10px;letter-spacing:1.7px;opacity:.72;font-weight:800}.title{font-size:28px;font-weight:850;margin-top:5px}.subtitle{font-size:12px;opacity:.8;margin-top:4px}.year{display:inline-block;margin-top:11px;padding:6px 12px;border-radius:20px;background:#ffffff1c;font-size:11px;font-weight:800}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.card{background:#fff;border-radius:19px;padding:15px;box-shadow:0 6px 20px #102A4310}.label{font-size:9px;font-weight:800;color:var(--muted);letter-spacing:.25px}.value{font-size:21px;font-weight:850;margin-top:5px}.blue{color:var(--blue)}.green{color:var(--green)}.cyan{color:var(--cyan)}.gold{color:var(--gold)}
+.section{font-size:15px;font-weight:850;margin:18px 4px 8px}.bank{padding:12px 0;border-bottom:1px solid var(--line)}.bank:last-child{border-bottom:0}.banktop{display:flex;justify-content:space-between;gap:12px}.stock{font-weight:850}.small{font-size:10px;color:var(--muted);margin-top:3px}.amt{font-weight:850;text-align:right}.status{font-size:9px;font-weight:800;padding:4px 7px;border-radius:10px;background:#E9F8F1;color:var(--green)}.pending{background:#FFF4D9;color:#A87300}.barbg{height:6px;background:#EDF1F6;border-radius:9px;margin-top:7px;overflow:hidden}.bar{height:100%;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:9px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.btn{border:0;border-radius:14px;background:#fff;padding:13px 7px;font-size:12px;font-weight:800;color:var(--navy);box-shadow:0 5px 15px #102A4310}.primary{background:var(--blue);color:#fff}.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#182230;color:#fff;padding:11px 15px;border-radius:13px;font-size:12px;display:none;z-index:9;white-space:nowrap}
+@media(min-width:650px){.kpis{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hero"><div class="eyebrow">การเงินส่วนบุคคล</div><div class="title">ปันผลหุ้นธนาคาร</div><div class="subtitle">ศูนย์จัดการเงินปันผล</div><div class="year" id="year">—</div></div>
+<div class="kpis">
+<div class="card"><div class="label">เงินปันผลก่อนหักภาษี</div><div class="value blue" id="gross">฿0.00</div></div>
+<div class="card"><div class="label">เงินปันผลสุทธิที่คาดว่าจะได้รับ</div><div class="value green" id="net">฿0.00</div></div>
+<div class="card"><div class="label">ได้รับเงินจริง</div><div class="value cyan" id="actual">฿0.00</div></div>
+<div class="card"><div class="label">รอดำเนินการ</div><div class="value gold" id="pending">0</div></div>
+</div>
+<div class="section">เงินปันผลแยกตามธนาคาร</div><div class="card" id="banks">กำลังโหลด…</div>
+<div class="section">รายการที่รอรับเงิน</div><div class="card" id="pendingList">กำลังโหลด…</div>
+<div class="section">เมนูด่วน</div>
+<div class="card"><div class="actions">
+<button class="btn primary" onclick="refreshData()">🔄 รีเฟรชข้อมูล</button>
+<button class="btn" onclick="openBackend()">⚙️ จัดการข้อมูล XD</button>
+<button class="btn" onclick="openSheets()">📊 เปิด Google Sheets</button>
+<button class="btn" onclick="addHomeHint()">📱 ติดตั้งเป็น App</button>
+</div></div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const API="https://script.google.com/macros/s/AKfycbyBIjS4h-lUQptOzY179XhgsV9HRydAs0CCaUhelVFiLtWCK204fzf8vYl4o8aZmo2Afw/exec";
+const money=v=>'฿'+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(s){const e=document.getElementById('toast');e.textContent=s;e.style.display='block';setTimeout(()=>e.style.display='none',1800)}
+function render(d){document.getElementById('year').textContent=d.year||'—';document.getElementById('gross').textContent=money(d.gross);document.getElementById('net').textContent=money(d.expectedNet);document.getElementById('actual').textContent=money(d.actualReceived);document.getElementById('pending').textContent=d.pending||0;
+const banks=Object.entries(d.banks||{}).sort((a,b)=>b[1].expectedNet-a[1].expectedNet),max=Math.max(...banks.map(x=>x[1].expectedNet),1);
+document.getElementById('banks').innerHTML=banks.length?banks.map(([s,v])=>'<div class="bank"><div class="banktop"><div><div class="stock">'+esc(s)+'</div><div class="small">ได้รับจริง '+money(v.actual)+'</div></div><div class="amt">'+money(v.expectedNet)+'<br><span class="status '+(v.status==='Paid'?'':'pending')+'">'+(v.status==='Paid'?'ได้รับแล้ว':'รอดำเนินการ')+'</span></div></div><div class="barbg"><div class="bar" style="width:'+Math.max(3,Math.round(v.expectedNet/max*100))+'%"></div></div></div>').join(''):'<div class="small">ไม่มีข้อมูล</div>';
+document.getElementById('pendingList').innerHTML=(window.pending||[]).length?window.pending.map(x=>'<div class="bank"><div class="banktop"><div><div class="stock">'+esc(x.stock)+'</div><div class="small">XD '+esc(x.xd||'-')+' • วันจ่าย '+esc(x.payment||'-')+'</div></div><div class="amt">'+money(x.expectedNet)+'<br><span class="status pending">รอรับเงิน</span></div></div></div>').join(''):'<div class="small">ไม่มีรายการรอรับเงิน 🎉</div>';}
+function jsonp(url,cb){const name='bdcb_'+Date.now();window[name]=function(d){delete window[name];s.remove();cb(d)};const s=document.createElement('script');s.src=url+'&callback='+name;document.body.appendChild(s)}
+function refreshData(){toast('กำลังโหลดข้อมูล…');jsonp(API+'?action=summary',s=>{jsonp(API+'?action=pending',p=>{window.pending=p.items||[];render(s);toast('อัปเดตแล้ว')})})}
+function openSheets(){jsonp(API+'?action=sheetUrl',d=>{if(d.url)location.href=d.url;else toast('ไม่พบลิงก์ Google Sheets')})}
+function openBackend(){location.href=API}
+function addHomeHint(){toast('กด Share → Add to Home Screen → Open as Web App')}
+window.addEventListener('load',refreshData);
+</script>
+</body>
+</html>
